@@ -425,7 +425,6 @@
           "type": "webview",
           "contextualTitle": "",
           "icon": "$(plug)",
-          "visibility": "visible",
           "when": "gitpod.portsView.visible"
         }
       ]
@@ -517,7 +516,7 @@
         {
           "id": "portsView",
           "title": "Ports",
-          "icon": ""
+          "icon": "$(plug)"
         }
       ]
     }
