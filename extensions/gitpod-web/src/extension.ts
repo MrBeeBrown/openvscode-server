@@ -429,11 +429,6 @@ export class GitpodPortViewProvider implements vscode.WebviewViewProvider {
 		const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'portsview', 'public', 'bundle.js'));
 		const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'portsview', 'public', 'bundle.css'));
 		const nonce = getNonce();
-		// <meta
-		// 		csp-nonce
-		//         http-equiv="Content-Security-Policy"
-		//         content="default-src 'none'; img-src data: ${webview.cspSource}; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'nonce-${nonce}'; script-src 'nonce-${nonce}';"
-		//         />
 		return `<!DOCTYPE html>
 	<html lang="en">
 	<head>
@@ -539,6 +534,7 @@ export function registerPorts(context: GitpodExtensionContext): void {
 	if (isPortsViewExperimentEnable) {
 		portViewProvider = new GitpodPortViewProvider(context);
 		context.subscriptions.push(vscode.window.registerWebviewViewProvider(GitpodPortViewProvider.viewType, portViewProvider, { webviewOptions: { retainContextWhenHidden: true } }));
+		vscode.commands.executeCommand('gitpod.portsView.focus');
 	}
 
 	function openExternal(port: GitpodWorkspacePort) {
