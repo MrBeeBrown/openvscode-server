@@ -425,7 +425,7 @@
           "type": "webview",
           "contextualTitle": "",
           "icon": "$(plug)",
-          "when": "gitpod.portsView.visible"
+          "when": "config.gitpod.experimental.portsView.enabled"
         }
       ]
     },

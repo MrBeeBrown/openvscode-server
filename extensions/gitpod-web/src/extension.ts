@@ -435,18 +435,18 @@ export class GitpodPortViewProvider implements vscode.WebviewViewProvider {
 		//         content="default-src 'none'; img-src data: ${webview.cspSource}; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'nonce-${nonce}'; script-src 'nonce-${nonce}';"
 		//         />
 		return `<!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8" />
-                <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
-                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <link nonce="${nonce}" href="${styleUri}" rel="stylesheet" />
-                <title>Gitpod Port View</title>
-            </head>
-            <body></body>
-            <script nonce="${nonce}" src="${scriptUri}"></script>
-            </html>`;
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link nonce="${nonce}" href="${styleUri}" rel="stylesheet" />
+		<title>Gitpod Port View</title>
+	</head>
+	<body></body>
+	<script nonce="${nonce}" src="${scriptUri}"></script>
+	</html>`;
 	}
 
 	private tunnelsMap = new Map<number, vscode.TunnelDescription>();
@@ -537,7 +537,6 @@ export function registerPorts(context: GitpodExtensionContext): void {
 	// register webview
 	let portViewProvider: GitpodPortViewProvider | undefined;
 	if (isPortsViewExperimentEnable) {
-		vscode.commands.executeCommand('setContext', 'gitpod.portsView.visible', true);
 		portViewProvider = new GitpodPortViewProvider(context);
 		context.subscriptions.push(vscode.window.registerWebviewViewProvider(GitpodPortViewProvider.viewType, portViewProvider, { webviewOptions: { retainContextWhenHidden: true } }));
 	}
