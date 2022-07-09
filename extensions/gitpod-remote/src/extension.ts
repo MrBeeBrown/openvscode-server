@@ -10,8 +10,12 @@ import * as path from 'path';
 import * as util from 'util';
 import * as vscode from 'vscode';
 
+const EXTENSION_ID = 'gitpod.gitpod-remote-ssh';
+
 let gitpodContext: GitpodExtensionContext | undefined;
 export async function activate(context: vscode.ExtensionContext) {
+	const packageJSON = vscode.extensions.getExtension(EXTENSION_ID)!.packageJSON;
+
 	gitpodContext = await setupGitpodContext(context);
 	if (!gitpodContext) {
 		return;
@@ -26,13 +30,9 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 		return;
 	}
-	if (openWorkspaceLocation(gitpodContext)) {
-		return;
-	}
 
 	registerTasks(gitpodContext);
 	installInitialExtensions(gitpodContext);
-	registerHearbeat(gitpodContext);
 
 	registerCLI(gitpodContext);
 	// configure task terminals if Gitpod Code Server is running
@@ -47,6 +47,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	// For collecting logs, will be called by gitpod-desktop extension;
 	context.subscriptions.push(vscode.commands.registerCommand('__gitpod.getGitpodRemoteLogsUri', () => {
 		return context.logUri;
+	}));
+	context.subscriptions.push(vscode.commands.registerCommand('__gitpod.getGitpodRemoteVersion', () => {
+		return packageJSON.version;
 	}));
 
 	// TODO
@@ -81,15 +84,6 @@ export function registerCLI(context: GitpodExtensionContext): void {
 		return;
 	}
 	context.environmentVariableCollection.replace('GITPOD_REMOTE_CLI_IPC', ipcHookCli);
-}
-
-export function openWorkspaceLocation(context: GitpodExtensionContext): boolean {
-	if (vscode.workspace.workspaceFolders) {
-		return false;
-	}
-	const workspaceUri = vscode.Uri.file(context.info.getWorkspaceLocationFile() || context.info.getWorkspaceLocationFolder());
-	vscode.commands.executeCommand('vscode.openFolder', workspaceUri, { forceReuseWindow: true });
-	return true;
 }
 
 export async function installInitialExtensions(context: GitpodExtensionContext): Promise<void> {
@@ -149,92 +143,4 @@ export async function installInitialExtensions(context: GitpodExtensionContext):
 		}
 	}
 	context.logger.info('initial extensions installed');
-}
-
-export function registerHearbeat(context: GitpodExtensionContext): void {
-	let lastActivity = 0;
-	const updateLastActivitiy = () => {
-		lastActivity = new Date().getTime();
-	};
-	const sendHeartBeat = async (wasClosed?: true) => {
-		const suffix = wasClosed ? 'was closed heartbeat' : 'heartbeat';
-		if (wasClosed) {
-			context.logger.trace('sending ' + suffix);
-		}
-		try {
-			await context.gitpod.server.sendHeartBeat({ instanceId: context.info.getInstanceId(), wasClosed });
-			if (wasClosed) {
-				context.fireAnalyticsEvent({ eventName: 'ide_close_signal', properties: { clientKind: 'vscode' } });
-			}
-		} catch (err) {
-			context.logger.error(`failed to send ${suffix}:`, err);
-			console.error(`failed to send ${suffix}`, err);
-		}
-	};
-	sendHeartBeat();
-	if (!context.devMode) {
-		context.pendingWillCloseSocket.push(() => sendHeartBeat(true));
-	}
-
-	const activityInterval = 10000;
-	const heartBeatHandle = setInterval(() => {
-		if (lastActivity + activityInterval < new Date().getTime()) {
-			// no activity, no heartbeat
-			return;
-		}
-		sendHeartBeat();
-	}, activityInterval);
-	context.subscriptions.push(
-		{
-			dispose: () => {
-				clearInterval(heartBeatHandle);
-			}
-		},
-		vscode.window.onDidChangeActiveTextEditor(updateLastActivitiy),
-		vscode.window.onDidChangeVisibleTextEditors(updateLastActivitiy),
-		vscode.window.onDidChangeTextEditorSelection(updateLastActivitiy),
-		vscode.window.onDidChangeTextEditorVisibleRanges(updateLastActivitiy),
-		vscode.window.onDidChangeTextEditorOptions(updateLastActivitiy),
-		vscode.window.onDidChangeTextEditorViewColumn(updateLastActivitiy),
-		vscode.window.onDidChangeActiveTerminal(updateLastActivitiy),
-		vscode.window.onDidOpenTerminal(updateLastActivitiy),
-		vscode.window.onDidCloseTerminal(updateLastActivitiy),
-		vscode.window.onDidChangeTerminalState(updateLastActivitiy),
-		vscode.window.onDidChangeWindowState(updateLastActivitiy),
-		vscode.window.onDidChangeActiveColorTheme(updateLastActivitiy),
-		vscode.authentication.onDidChangeSessions(updateLastActivitiy),
-		vscode.debug.onDidChangeActiveDebugSession(updateLastActivitiy),
-		vscode.debug.onDidStartDebugSession(updateLastActivitiy),
-		vscode.debug.onDidReceiveDebugSessionCustomEvent(updateLastActivitiy),
-		vscode.debug.onDidTerminateDebugSession(updateLastActivitiy),
-		vscode.debug.onDidChangeBreakpoints(updateLastActivitiy),
-		vscode.extensions.onDidChange(updateLastActivitiy),
-		vscode.languages.onDidChangeDiagnostics(updateLastActivitiy),
-		vscode.tasks.onDidStartTask(updateLastActivitiy),
-		vscode.tasks.onDidStartTaskProcess(updateLastActivitiy),
-		vscode.tasks.onDidEndTask(updateLastActivitiy),
-		vscode.tasks.onDidEndTaskProcess(updateLastActivitiy),
-		vscode.workspace.onDidChangeWorkspaceFolders(updateLastActivitiy),
-		vscode.workspace.onDidOpenTextDocument(updateLastActivitiy),
-		vscode.workspace.onDidCloseTextDocument(updateLastActivitiy),
-		vscode.workspace.onDidChangeTextDocument(updateLastActivitiy),
-		vscode.workspace.onDidSaveTextDocument(updateLastActivitiy),
-		vscode.workspace.onDidChangeNotebookDocument(updateLastActivitiy),
-		vscode.workspace.onDidSaveNotebookDocument(updateLastActivitiy),
-		vscode.workspace.onDidOpenNotebookDocument(updateLastActivitiy),
-		vscode.workspace.onDidCloseNotebookDocument(updateLastActivitiy),
-		vscode.workspace.onWillCreateFiles(updateLastActivitiy),
-		vscode.workspace.onDidCreateFiles(updateLastActivitiy),
-		vscode.workspace.onWillDeleteFiles(updateLastActivitiy),
-		vscode.workspace.onDidDeleteFiles(updateLastActivitiy),
-		vscode.workspace.onWillRenameFiles(updateLastActivitiy),
-		vscode.workspace.onDidRenameFiles(updateLastActivitiy),
-		vscode.workspace.onDidChangeConfiguration(updateLastActivitiy),
-		vscode.languages.registerHoverProvider('*', {
-			provideHover: () => {
-				updateLastActivitiy();
-				return null;
-			}
-		})
-	);
 }
